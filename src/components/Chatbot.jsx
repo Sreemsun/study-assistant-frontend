@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Send, Bot, User, LogOut } from "lucide-react";
 import { motion } from "framer-motion";
+import { sendMessage as sendChatMessage } from "../api/chatApi";
 
 export default function Chatbot({ onLogout }) {
   const [messages, setMessages] = useState([
@@ -8,9 +9,13 @@ export default function Chatbot({ onLogout }) {
       id: 1,
       sender: "assistant",
       text: "Hello! 👋 I'm your AI study assistant. Ask me anything.",
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      timestamp: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
     },
   ]);
+
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
 
@@ -23,46 +28,48 @@ export default function Chatbot({ onLogout }) {
     }
   }, [messages, isTyping]);
 
-  // ✅ BACKEND-CONNECTED FUNCTION
   const sendMessage = async (text) => {
     if (!text || !text.trim() || isTyping) return;
 
-    const user = {
+    const userMessage = {
       id: Date.now(),
       sender: "user",
       text,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      timestamp: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
     };
 
-    setMessages((m) => [...m, user]);
+    setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsTyping(true);
 
     try {
-      const res = await fetch("http://localhost:8000/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text }),
-      });
+      const aiReply = await sendChatMessage(text);
 
-      const data = await res.json();
-
-      const reply = {
+      const botMessage = {
         id: Date.now() + 1,
         sender: "assistant",
-        text: data.reply || "I couldn't generate a response.",
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        text: aiReply || "I couldn't generate a response.",
+        timestamp: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
       };
 
-      setMessages((m) => [...m, reply]);
+      setMessages((prev) => [...prev, botMessage]);
     } catch (error) {
-      setMessages((m) => [
-        ...m,
+      setMessages((prev) => [
+        ...prev,
         {
           id: Date.now() + 2,
           sender: "assistant",
           text: "⚠️ Unable to reach the server. Please try again.",
-          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          timestamp: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
         },
       ]);
     } finally {
@@ -92,7 +99,9 @@ export default function Chatbot({ onLogout }) {
         <div className="hero-column">
           <p className="small-muted">Supercharged Learning</p>
           <h1 className="hero-title">An AI powered tutor</h1>
-          <p className="hero-sub">Get instant answers from your personal AI tutor</p>
+          <p className="hero-sub">
+            Get instant answers from your personal AI tutor
+          </p>
 
           <div className="chat-window glass-card mt-8">
             <div className="window-head">
@@ -106,17 +115,23 @@ export default function Chatbot({ onLogout }) {
 
             <div ref={messagesRef} className="chat-messages">
               {messages.map((m) => (
-                <motion.div key={m.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+                <motion.div
+                  key={m.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
                   <div style={{ display: "flex", gap: 12 }}>
                     {m.sender === "assistant" && (
                       <div className="icon-bot">
                         <Bot className="w-4 h-4 text-white" />
                       </div>
                     )}
+
                     <div style={{ flex: 1, textAlign: m.sender === "user" ? "right" : "left" }}>
                       <div className={`msg ${m.sender}`}>{m.text}</div>
                       <div className="msg-time">{m.timestamp}</div>
                     </div>
+
                     {m.sender === "user" && (
                       <div className="icon-user">
                         <User className="w-4 h-4 text-white" />
@@ -126,9 +141,7 @@ export default function Chatbot({ onLogout }) {
                 </motion.div>
               ))}
 
-              {isTyping && (
-                <div className="msg assistant">AI is typing…</div>
-              )}
+              {isTyping && <div className="msg assistant">AI is typing…</div>}
             </div>
 
             <div className="suggested-row">
@@ -148,7 +161,11 @@ export default function Chatbot({ onLogout }) {
                 onKeyDown={(e) => e.key === "Enter" && sendMessage(input)}
                 placeholder="Ask StudyAI anything..."
               />
-              <button className="send-btn" onClick={() => sendMessage(input)} disabled={!input.trim()}>
+              <button
+                className="send-btn"
+                onClick={() => sendMessage(input)}
+                disabled={!input.trim()}
+              >
                 <Send className="w-4 h-4" />
               </button>
             </div>
